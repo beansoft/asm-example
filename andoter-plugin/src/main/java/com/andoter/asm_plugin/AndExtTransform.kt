@@ -17,7 +17,7 @@ class AndExtTransform(val appExtension: AppExtension, private val andExt: AndExt
     }
 
     override fun isIncremental(): Boolean {
-        return true
+        return true // 支持增量
     }
 
     override fun getScopes(): MutableSet<in QualifiedContent.Scope> {

@@ -2,9 +2,11 @@ package com.andoter.asm_plugin.utils
 
 import com.andoter.asm_plugin.AndExt
 import com.andoter.asm_plugin.visitor.cv.AndExtensionInterceptor
+import com.andoter.asm_plugin.visitor.mv.MethodReplaceBodyVisitor
 import com.android.build.api.transform.*
 import com.android.utils.FileUtils
 import org.objectweb.asm.ClassReader
+import org.objectweb.asm.ClassVisitor
 import org.objectweb.asm.ClassWriter
 import org.objectweb.asm.Opcodes
 import java.io.File
@@ -21,10 +23,19 @@ internal object TransformHelper {
     /**
      * 遍历处理 Jar
      */
-    fun transformJars(jarInput: JarInput, outputProvider: TransformOutputProvider, isIncremental: Boolean) {
+    fun transformJars(
+        jarInput: JarInput,
+        outputProvider: TransformOutputProvider,
+        isIncremental: Boolean
+    ) {
         val jarName = jarInput.name
         val status = jarInput.status
-        val destFile = outputProvider.getContentLocation(jarName, jarInput.contentTypes, jarInput.scopes, Format.JAR)
+        val destFile = outputProvider.getContentLocation(
+            jarName,
+            jarInput.contentTypes,
+            jarInput.scopes,
+            Format.JAR
+        )
         ADLog.info("TransformHelper[transformJars], jar = $jarName, status = $status, isIncremental = $isIncremental")
         if (isIncremental) {
             when (status) {
@@ -50,17 +61,27 @@ internal object TransformHelper {
         }
     }
 
-    fun transformDirectory(directoryInput: DirectoryInput, outputProvider: TransformOutputProvider, isIncremental: Boolean) {
+    fun transformDirectory(
+        directoryInput: DirectoryInput,
+        outputProvider: TransformOutputProvider,
+        isIncremental: Boolean
+    ) {
         val sourceFile = directoryInput.file
         val name = sourceFile.name
-        val destDir = outputProvider.getContentLocation(name, directoryInput.contentTypes, directoryInput.scopes, Format.DIRECTORY)
+        val destDir = outputProvider.getContentLocation(
+            name,
+            directoryInput.contentTypes,
+            directoryInput.scopes,
+            Format.DIRECTORY
+        )
         ADLog.info("TransformHelper[transformDirectory], name = $name, sourceFile Path = ${sourceFile.absolutePath}, destFile Path = ${destDir.absolutePath}, isIncremental = $isIncremental")
         if (isIncremental) {
             val changeFiles = directoryInput.changedFiles
             for (changeFile in changeFiles) {
                 val status = changeFile.value
                 val inputFile = changeFile.key
-                val destPath = inputFile.absolutePath.replace(sourceFile.absolutePath, destDir.absolutePath)
+                val destPath =
+                    inputFile.absolutePath.replace(sourceFile.absolutePath, destDir.absolutePath)
                 val destFile = File(destPath)
                 ADLog.info("目录：$destPath，状态：$status")
                 when (status) {
@@ -109,7 +130,9 @@ internal object TransformHelper {
             var modifyClassBytes: ByteArray? = null
             val destClassBytes = IOUtils.readBytes(inputStream)
             if (!jarEntry.isDirectory && entryName.endsWith(".class") && !entryName.startsWith("android")) {
-                modifyClassBytes = destClassBytes?.let { modifyClass(it) }
+                val className = entryName.replace("/", ".").replace(".class", "") // 读取类名, 忽略需要加工的类
+                modifyClassBytes = destClassBytes?.let { modifyClass(it, className) }
+
             }
 
             if (modifyClassBytes != null) {
@@ -143,8 +166,17 @@ internal object TransformHelper {
                     val fileInputStream = FileInputStream(file)
                     val sourceBytes = IOUtils.readBytes(fileInputStream)
                     var modifyBytes: ByteArray? = null
-                    if (!file.name.contains("BuildConfig")) {
-                        modifyBytes = modifyClass(sourceBytes!!)
+                    ADLog.info("handleDirectory file = ${file.absolutePath}")
+
+                    var fileName:String = file.absolutePath
+                    if (File.separator != "/") {
+                        fileName = fileName.replace("\\\\", "/")
+                    }
+
+                    fileName = path2ClassName(fileName)
+
+                    if (!file.name.contains("BuildConfig") ) {
+                        modifyBytes = modifyClass(sourceBytes!!, fileName)
                     }
                     if (modifyBytes != null) {
                         val destPath = destFile.absolutePath
@@ -158,11 +190,45 @@ internal object TransformHelper {
         }
     }
 
-    private fun modifyClass(sourceBytes: ByteArray): ByteArray? {
+    private fun  path2ClassName( pathName : String):String {
+        return pathName.replace(File.separator, ".").replace(".class", "")
+    }
+
+    private fun modifyClass(sourceBytes: ByteArray, className : String): ByteArray? {
+
+        // 忽略不处理的类
+        if(className.endsWith("com.sensorsdata.asm_example.TelephonyManagerProxy")) {
+            return sourceBytes;
+        }
+
         try {
             val classReader = ClassReader(sourceBytes)
             val classWriter = ClassWriter(classReader, ClassWriter.COMPUTE_MAXS)
-            val classVisitor = AndExtensionInterceptor(Opcodes.ASM8, classWriter, andExt)
+            var classVisitor:ClassVisitor = AndExtensionInterceptor(Opcodes.ASM8, classWriter, andExt)
+
+            if(className.endsWith("com.sensorsdata.asm_example.MainActivity")) {
+                ADLog.error("Only MethodEmptyBodyVisitor on com.sensorsdata.asm_example.MainActivity")
+                classVisitor =
+                    MethodReplaceBodyVisitor(
+                        Opcodes.ASM8, classVisitor, "onRestoreInstanceState",
+                        "(Landroid/os/Bundle;)V"
+                    )
+            }
+
+//            if(super.className.equals("com/sensorsdata/asm_example/MainActivity") && name == "onRestoreInstanceState"
+//                && descriptor == "(Landroid/os/Bundle;)V" ) {
+//                ADLog.error("Only with MainActivity.onRestoreInstanceState(Landroid/os/Bundle;)V add TryCatchInterceptor")
+//                methodVisitor =
+//                    MethodEmptyBodyVisitor(super.api, methodVisitor, "verify", "(Ljava/lang/String;Ljava/lang/String;)V")
+//            }
+//            var classVisitor = MethodReplaceInvokeVisitor(Opcodes.ASM8, classWriter,
+//                "java/lang/Math", "max", "(II)I",
+//                Opcodes.INVOKESTATIC, "java/lang/Math", "min", "(II)I")
+//            classVisitor = MethodReplaceInvokeVisitor(Opcodes.ASM8, classVisitor,
+//                "android/telephony/TelephonyManager", "getNetworkType", "()I",
+//                Opcodes.INVOKESTATIC, "com/sensorsdata/asm_example/TelephonyManagerProxy", "getNetworkType",
+//                "(Landroid/telephony/TelephonyManager;)I")
+//            AndExtensionInterceptor(Opcodes.ASM8, classWriter, andExt)
             classReader.accept(classVisitor, ClassReader.SKIP_DEBUG)
             return classWriter.toByteArray()
         } catch (exception: Exception) {

@@ -2,6 +2,7 @@ package com.andoter.asm_plugin.visitor.mv
 
 import com.andoter.asm_plugin.utils.ADLog
 import com.andoter.asm_plugin.utils.AccessCodeUtils
+import com.andoter.asm_plugin.utils.StringUtils
 import com.andoter.asm_plugin.visitor.PluginConstant
 import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes
@@ -20,8 +21,26 @@ class DeleteLogInterceptor(methodVisitor: MethodVisitor?, access: Int, name: Str
             /**
              * 直接 return 只是删除了 Log 指令的调用，但是对应的当前的操作数栈没有进行处理
              */
+            mv.visitMethodInsn(INVOKESTATIC, "java/lang/System", "nanoTime", "()J", false) // 此句测试通过
+            // 将当前类名添加到操作栈，作为 TAG
+//            mv.visitLdcInsn(descriptor)
+//            // 将当前方法名添加到操作栈，进行输出
+//            mv.visitLdcInsn(name)
+//            mv.visitMethodInsn(Opcodes.INVOKESTATIC, "android/util/Log", "d", "(Ljava/lang/String;Ljava/lang/String;)I", false)
             return
         }
+//        if ( owner == "com/sensorsdata/asm_example/MainActivity" && (name == "onRestoreInstanceState")
+//            && descriptor == "(Landroid/os/Bundle;)V"
+//        ) {
+//            mv.visitCode();
+//            mv.visitVarInsn(ALOAD, 0);
+//            mv.visitVarInsn(ALOAD, 1);
+//            mv.visitMethodInsn(INVOKESPECIAL, "androidx/appcompat/app/AppCompatActivity", "onRestoreInstanceState", "(Landroid/os/Bundle;)V", false);
+//            mv.visitInsn(RETURN);
+//            mv.visitMaxs(2, 2);
+//            mv.visitEnd();
+//            return
+//        }
 
         super.visitMethodInsn(opcodeAndSource, owner, name, descriptor, isInterface)
     }

@@ -17,6 +17,16 @@ dependencies {
 sourceCompatibility = "1.7"
 targetCompatibility = "1.7"
 
+// Specify UTF-8 for all compilations so we avoid Windows-1252.
+allprojects {
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
+    }
+    tasks.withType(Test) {
+        systemProperty "file.encoding", "UTF-8"
+    }
+}
+
 uploadArchives {
     repositories {
         mavenDeployer {

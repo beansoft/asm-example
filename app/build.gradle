@@ -24,9 +24,9 @@ android {
 
 AndExt {
     debug = true
-    tryCatch = true
+    tryCatch = false
     printLog = true
-    deleteLog = false
+    deleteLog = true
 }
 
 dependencies {
