@@ -2,7 +2,7 @@ apply plugin: 'com.android.application'
 apply plugin: 'com.andoter.plugin'
 android {
     compileSdkVersion 30
-    buildToolsVersion "30.0.1"
+    buildToolsVersion "30.0.3"
 
     defaultConfig {
         applicationId "com.sensorsdata.asm_example"
