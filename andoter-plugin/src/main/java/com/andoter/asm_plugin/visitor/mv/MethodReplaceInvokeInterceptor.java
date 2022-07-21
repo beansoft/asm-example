@@ -13,6 +13,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 
+/**
+ * 方法替换拦截器.
+ */
 public class MethodReplaceInvokeInterceptor extends AdviceAdapter {
 
     List<ReplaceMethodEntry> replaceMethodList = new ArrayList<>();
